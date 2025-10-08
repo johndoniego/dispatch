@@ -14,9 +14,33 @@ Before you begin, ensure you have the following installed:
 - Git
 - Windows PowerShell (for build scripts)
 
-## Development Workflow
+## Setup
 
-Follow these steps for development and building:
+### 1. Install Dependencies
+
+```bash
+bun install
+```
+
+### 2. Configure Environment
+
+Create a `.env` file in the `dispatch` folder:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your Supabase credentials:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+```
+
+**Get Supabase credentials:** https://supabase.com/dashboard → Your Project → Settings → API
+
+### 3. Development Workflow
 
 1. **Install dependencies**
    - Run `bun install` after every code change or when a new module is added.

@@ -42,7 +42,14 @@ import { ContactsService } from 'lib/services/contacts';
 import { EmergencyContact } from 'lib/types';
 import * as Cellular from 'expo-cellular';
 import * as Haptics from 'expo-haptics';
-import VolumeManager from 'react-native-volume-manager';
+
+let VolumeManager: any = null;
+try {
+  VolumeManager = require('react-native-volume-manager').default;
+} catch (e) {
+  console.warn('VolumeManager not available:', e);
+  VolumeManager = null;
+}
 
 let ImmediatePhoneCallModule: any = null;
 try {
@@ -107,14 +114,20 @@ export default function EmergencyScreen() {
     {
       service: 'Police',
       number: '911',
+      id: 'default-police',
+      isSaved: false,
     },
     {
       service: 'Fire Department',
       number: '9602955055',
+      id: 'default-fire',
+      isSaved: false,
     },
     {
       service: 'Ambulance',
       number: '69420',
+      id: 'default-ambulance',
+      isSaved: false,
     },
   ];
 
@@ -248,6 +261,11 @@ export default function EmergencyScreen() {
 
   // Volume button detection with react-native-volume-manager
   useEffect(() => {
+    if (!VolumeManager) {
+      console.warn('VolumeManager not available, volume hold disabled');
+      return;
+    }
+
     let volumeTimer: ReturnType<typeof setTimeout> | null = null;
     let pressStartTime = 0;
 
@@ -266,21 +284,31 @@ export default function EmergencyScreen() {
         if (holdDuration >= emergencySettings.volumeHoldDuration - 100) {
           // 100ms tolerance
           triggerHapticFeedback('emergency');
+          
+          // Set the emergency number to Fire Department (9602955055)
+          const fireDepNumber = '9602955055';
+          setEmergencyNumber(fireDepNumber);
+          
+          // Call immediately without confirmation
           Alert.alert(
-            'Emergency via Volume Hold',
-            'Emergency protocol activated via volume button hold!',
+            'Emergency Call Initiated',
+            `Calling Fire Department: ${fireDepNumber}`,
             [
               {
-                text: 'Cancel',
-                style: 'cancel',
+                text: 'OK',
+                onPress: () => {
+                  // Make the call
+                  Linking.openURL(`tel:${fireDepNumber}`);
+                },
               },
-              {
-                text: 'Confirm Emergency',
-                style: 'destructive',
-                onPress: activateEmergencyProtocol,
-              },
-            ]
+            ],
+            { cancelable: false }
           );
+          
+          // Auto-call after 1 second if user doesn't dismiss
+          setTimeout(() => {
+            Linking.openURL(`tel:${fireDepNumber}`);
+          }, 1000);
         }
       }, emergencySettings.volumeHoldDuration);
     };
@@ -288,8 +316,12 @@ export default function EmergencyScreen() {
     // Enable volume change detection
     const enableVolumeListener = async () => {
       try {
-        await VolumeManager.enable(true);
-        VolumeManager.addVolumeListener(handleVolumeChange);
+        if (VolumeManager && typeof VolumeManager.enable === 'function') {
+          await VolumeManager.enable(true);
+        }
+        if (VolumeManager && typeof VolumeManager.addVolumeListener === 'function') {
+          VolumeManager.addVolumeListener(handleVolumeChange);
+        }
       } catch (error) {
         console.warn('Volume manager error:', error);
       }
@@ -301,9 +333,13 @@ export default function EmergencyScreen() {
 
     return () => {
       try {
-        VolumeManager.enable(false);
+        if (VolumeManager && typeof VolumeManager.enable === 'function') {
+          VolumeManager.enable(false);
+        }
         // Note: removeVolumeListener might not exist in this version
-        // VolumeManager.removeVolumeListener();
+        if (VolumeManager && typeof VolumeManager.removeVolumeListener === 'function') {
+          VolumeManager.removeVolumeListener(handleVolumeChange);
+        }
       } catch (error) {
         console.warn('Volume manager cleanup error:', error);
       }
